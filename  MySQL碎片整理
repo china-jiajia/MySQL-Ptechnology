@@ -1,0 +1,37 @@
+
+1.MyISAM存储引擎清理碎片方法
+	.OPTIMIZE TABLE table_name;
+
+2.InnoDB存储引擎清理碎片方法
+	.ALTER TABLE table_name ENGINE=InnoDB; 		#之前版本的MySQL不支持OPTIMIZE所以使用,ALTER方式(该方式会就旧表以复制的方式新建一个新表,然后删除旧表。整个过程是安全的；为了防止万一还是需要备份数据)
+	.OPTIMIZE TABLE table_name;
+
+3.查看表碎片的方法
+ 	.select ROW_FORMAT,TABLE_ROWS,DATA_LENGTH,INDEX_LENGTH,MAX_DATA_LENGTH,DATA_FREE,ENGINE from information_schema.tables where table_schema='zabbix' and table_name='history';    
+ 	.select TABLE_NAME,ROW_FORMAT,TABLE_ROWS,DATA_LENGTH,INDEX_LENGTH,MAX_DATA_LENGTH,DATA_FREE,ENGINE from information_schema.tables where table_schema='zabbix' and data_free !=0;
+
+ 	注释:如果是共享表空间的话,data_free表示共享表空间的大小而非数据大小。如果是独立表空间才是该表的剩余空间。
+
+
+4.OPTIMIZE
+	1.OPTIMIZE TABLE只对MyISAM,BDB和InnoDB表起作用
+		.MyISAM表,OPTIMIZE TABLE方式:
+			.如果表已经删除或分解了行，则修复表
+			.如果未对索引页进行分类，则进行分类
+			.如果表的统计数据没有更新(并且通过对索引进行分类不能实现修复)，则进行更新。
+
+	2.对BDB表，OPTIMIZE TABLE目前被映射到ANALYZE TABLE上。
+	3.对于InnoDB表，OPTIMIZE TABLE被映射到ALTER TABLE上，这会重建表。重建操作更新索引统计数据释放成簇索引中的未使用的空间
+	4.Engine不同，OPTIMIZE的操作也不一样，MyISAM因为索引和数据是分开的；所以OPTIMIZE可以整理数据文件，并重拍索引
+	5.OPTIMIZE操作会暂时锁住表，而且数据量越大，耗费的时间越长，它毕竟不是简单查询操作，所以把Optimize命令放在程序中是不妥当的，不管设置的命中多低，当访问量增大的时候，整体命中率也会上升，这样肯定对程序的运行效率造成很大影响，比较好的方式就是做一个shell，定期检查MySQL中 information_schema.tables 表字段，查看DATA_FREE字段，大于0话，就表示有碎片
+
+
+	备注:
+		1.MySQL官方建议不要经常(每小时或每天)进行碎片整理，一般根据实际情况，只需要每周或者每月整理一次即可。
+		2.OPTIMIZE TABLE 只对MyISAM,BDB和InnoDB表起作用，尤其是MyISAM表的作用最为明显。此外，并不是所有表都需要进行碎片整理，一般只需要对包含(VARCHAR,TEXT,BLOB)可变长的文本数据类型的表进行整理即可。
+		3.在OPTIMIZE TABLE运行过程中，MySQL会锁表
+		4.默认情况下，直接对InnoDB引擎的数据表使用OPTIMIZE TABLE,可能会显示[Table does not support optimize,doing recreate + analyze inserted ]的提示信息。这个时候，我们可以用mysqld --skip-new或mysqld --safe-mode命令来重启MySQL。以便于让其他引擎支持OPTIMIZE TABLE.
+
+		参考:http://blog.itpub.net/29893219/viewspace-1871911/
+		参考1:http://www.linuxidc.com/Linux/2013-01/77872.htm
+

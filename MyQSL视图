@@ -1,0 +1,155 @@
+
+一、使用视图的理由
+	1.安全性:一般是创建一个视图，定义好该视图所操作的数据；之后将用户权限与视图绑定，这样的方式是使用到一个特性:grant语句可以针对视图进行授予权限
+	2.查询性能提高
+	3.有灵活性的功能需求后，需要改动表的结构而导致工作量比较大，可以使用虚拟表的形式达到少修改的效果。(实际开发中比较有用)
+	4.复杂的查询需求，可以进行问题分解，然后创建多个视图获取数据。将视图联合起来就能得到需要的结果了。
+
+
+二、创建视图
+	1.创建视图语法
+	CREATE [OR REPLACE] [ALGORITHM = {UNDEFINED|MERGE|TEMPTABLE}]
+		VIEW view_name [(column_list)]
+		AS select_statement
+		[WITH[CASCADED|LOCAL] CHECK OPTION]
+
+	2.语句参数解释
+		CREATE:新建视图
+		REPLACE:替换已有视图
+		ALGORITHM:视图选择算法
+		view_name:视图名
+		column_list:属性列
+		select_statement:select语句
+		[WITH[CASCADED|LOCAL]CHECK OPTION]:视图在更新时保证在视图的权限范围之内
+
+
+		ALGORITHM:(有三个可选值:MERGE、TEMTABLE、UNDEFINED)
+			.可选的ALGORITHM子句是对标准SQL的MySQL扩展;如果没有ALGORITHM子句，默认算法是UNDEFINED(未定义的)。算法会影响MySQL处理视图的方式
+			.MEGE:会将引用视图的语句的文本与视图定义合并起来，使得视图定义的某一部分取代语句的对应部分。
+			.TEMPTABLE:视图的结果将被置于临时表中，然后使用它执行语句。
+			.UNDEFINED,MySQL会选择要使用的算法。如果可能，它倾向于MERGE而不是TEMPTABLE；这是因为MERGE通常更有效，而且如果使用了临时表，视图是不可能更新的。
+		LOCAL和CASCADED为可选参数，决定了检查测试的范围，默认值为CASCADED.
+
+
+	3.创建视图实例
+	  CREATE TABLE student(stuno INT,stuname varchar(60));
+	  CREATE TABLE studinfo(stuno INT,class varchar(60),city varchar(60));
+
+	  INSERT INTO student values(1,'wanglin'),(2,'gaoli'),(3,'zhanghai');
+	  INSERT INTO studinfo values(1,'wuban','henan'),(2,'liuban','hebei'),(3,'qiban','shandong');
+
+	 CREATE VIEW stu_class(id,NAME,glass) AS SELECT student.stuno,student.stuname,studinfo.class FROM student,studinfo WHERE student.stuno=studinfo.stuno;
+
+	  SELECT * FROM stu_class;
+
+
+	4.查看视图(查看视图需要有:SHOW VIEW权限)
+		.查看视图的方法：
+			.DESCRIBE
+			.SHOW TABLE STATUS
+			.SHOW CREATE VIEW
+
+			.DESCRIBE(DESC) stu_class;
+			.SHOW TABLE STATUS LIKE 'stu_class';
+			.SHOW CREATE VIEW stu_class;
+
+		.INFORMATION_SCHEMA.VIEWS表存储了数据库中关于视图的信息
+			.SELECT * FROM information_schema.views;
+			.select * from information_schema.views where table_name='stu_class'; 
+
+
+	5.修改视图(修改数据库中存在的视图,当基表的某些字段发生变化时,可以通过修改视图来保持与基本表的一致)
+		.MySQL中通过CREATE OR REPLACE VIEW和ALTER语句来修改视图
+			.语法:ALTER OR REPLACE [ALGORITHM = {UNDEFINED|MERGE|TEMPTABLE}]
+					VIEW view_name [(column_list)] AS select_statement [WITH [CASCADED|LOCAL] CHECK OPTION ]
+
+			.OR REPLACE语句修改视图
+DELIMITER //
+CREATE OR REPLACE VIEW stu_class AS
+SELECT student.stuno AS id  from (stdent JOIN stuinfo) 
+WHERE (student.stuon = stuinfo.stuon) //
+DELMITER ;
+
+			.查看修改之后的视图定义
+				.DESC stu_class;
+
+		.ALTER 语句修改视图
+			.语法:ALTER [ALGORITHM ={UNDEFINED|MERGE|TEMPTABLE}] VIEW view_name [(column_list)] AS select_statement 
+				[WITH [CASCADED|LCOAL] CHECK OPTION]
+
+
+			.ALTER修改视图stu_class
+				.ALTER VIEW stu_class AS SELECT stuno FROM student;
+
+			.查看修改之后的视图定义
+				.DESC stu_class;
+
+
+	6.更新视图(通过视图来插入、更新、删除数据;视图是虚表没有数据)
+	  #通过更新视图更新的时候都是转到基表进行更新，如果对视图增加或删除记录，实际上是对基表增加或删除记录
+	  .定义视图
+	  	.ALTER VIEW stu_class AS SELECT stuno,stname  FROM student;
+
+		  .查询视图数据
+		  	.select * from stu_class;
+
+	  .UPDATE
+	  	.UPDATE stu_class SET stuname='xiaofang' WHERE stuno=2;
+
+	  	  .查询视图数据
+		  	.select * from stu_class;
+
+	  .INSERT
+	  	.INSERT INTO stu_class values(6,'haojie');
+
+	  	.查询视图数据
+		  	.select * from stu_class;
+
+	  .DELETE
+	  	.DELETE FROM stu_class WHERE stuno=1;
+
+	  	.查询视图数据
+		  	.select * from stu_class;
+
+
+	  注释:(视图中包含以下内容的时候，视图更新操作将不能被执行)
+	  	1.视图中包含基本中被定义为非空列
+	  	2.定义视图的SELECT语句后的字段列表中使用了数学表达式
+	  	3.定义视图的SELECT语句后的字段列中使用聚合函数
+	  	4.定义视图的SELECT语句中使用了DISTINCT、UNION、TOP、GROUP BY、HAVING子句
+
+
+	7.删除视图
+		.语法: DROP VIEW [IF EXISTS] view_name [,view_name] ... [RESTRICT|CASCADE]		#DROP VIEW能够删除1个或多个视图；必须在每个视图上拥有DROP权限(可是使用IF EXISTS来防止不存在的视图而出错)
+
+		.删除stu_class视图
+			.DROP VIEW IF EXISTS stu_class;
+
+		.查看视图结果
+			.SHOW CREATE VIEW stu_class;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

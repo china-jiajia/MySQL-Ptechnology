@@ -1,0 +1,79 @@
+
+*************************** 1. row ***************************
+               Slave_IO_State: 							
+                  Master_Host: 127.0.0.1
+                  Master_User: 
+                  Master_Port: 3306
+                Connect_Retry: 60  					#连接中断后，重新尝试连接的时间间隔。默认是60秒
+              
+              Master_Log_File: 						#当前I/O线程正在读取的主服务器的二进制日志文件的名称
+          Read_Master_Log_Pos: 4					#挡墙I/O线程正在读取的二进制日志的位置
+               
+               Relay_Log_File: relay-bin.000001		#当前slave SQL线程正在读取并执行的relay log的文件名
+                Relay_Log_Pos: 4					#当前slave SQL线程正在读取并执行的relay log文件中的位置
+        Relay_Master_Log_File: 						#当前slave SQL线程读取并执行的relay log的文件中多数近期事件，对应的主服务器二进制日志文件的名称。(当前SQL线程从relay 日志中读取的正在执行的SQL语句，对应主库的SQL语句记录在主库的那个binlog日志中)
+            
+             Slave_IO_Running: No 					#I/O线程是否被启动并成功地连接到主服务器上
+            Slave_SQL_Running: No 					#SQL线程是否被启动
+
+              Replicate_Do_DB: 						#指定slave要复制主库上的那个库(该参数需要在slave上进行配置)
+          Replicate_Ignore_DB: 						#排除slave不要复制主库上的那个库(该参数需要在slave上进行配置)
+           Replicate_Do_Table:						#指定slave要复制主库上指定库的指定表(该参数需要在slave上进行配置)
+       Replicate_Ignore_Table: 						#排除slave不要复制主库上指定库的指定表(该参数需要在slave上进行配置)
+      Replicate_Wild_Do_Table: 						#使用wild规则匹配指定复制的表(该参数需要在slave上进行配置)
+  Replicate_Wild_Ignore_Table: 						#使用wild规则匹配指定不复制的表(该参数需要在slave上进行配置)
+
+                   Last_Errno: 0					#slave的SQL线程读取日志参数的错误数量和错误信息(错误数量为0并且为空字符串表示没有错误;如果Laste_Error值部位空值，它也会在从属服务器的错误日志中作为消息显示)
+                   Last_Error: 
+                 Skip_Counter: 0					#SQL_SALVE_SKIP_COUNTER的值，用于设置跳过SQL执行步数
+
+
+          Exec_Master_Log_Pos: 0					#slave SQL线程当前执行的事件，对应在master相应的二进制日志中的position(结合Relay_Master_Log_File理解,而且在Relay_Master_Log_file这个值等于Master_Log_File值的时候,Exec_Mater_Log_Pos是不可能超过Read_Master_Log_Pos的)
+              Relay_Log_Space: 154					#所有原有的中继日志结合起来的总大小
+
+              #在START SLAVE语句的UNTIL子句指定的值
+              Until_Condition: None					#Until_Condition具有以下值:
+              										 1.如果没有指定UNTIL子句，则没有值
+              										 2.如果从属服务器正在读取，直到到达主服务器的二进制日志的给定位置为止，则值为Master
+              										 3.如果从属服务器正在读取，直到达到其中继日志的给定位置为止，则值为Relay
+
+              #Until_Log_File和Until_Log_Pos用于指定日志文件名和位置值。日志文件名和位置值定义了SQL线程在哪个点终止执行
+               Until_Log_File: 
+                Until_Log_Pos: 0
+
+           Master_SSL_Allowed: No 					#slave服务器加密连接主服务器的允许状态,状态值有:(YES、NO、Ignored)
+           Master_SSL_CA_File: 
+           Master_SSL_CA_Path: 
+              Master_SSL_Cert: 
+            Master_SSL_Cipher: 
+               Master_SSL_Key: 
+
+        Seconds_Behind_Master: NULL					#这个值是时间戳的差值。是slave当前的时间戳和master记录该事件时的时间戳差值
+
+Master_SSL_Verify_Server_Cert: No
+
+				#最后一次I/O和SQL线程的错误号和错误信息
+                Last_IO_Errno: 0
+                Last_IO_Error: 
+               Last_SQL_Errno: 0
+               Last_SQL_Error: 
+
+  Replicate_Ignore_Server_Ids: 
+             Master_Server_Id: 0
+                  Master_UUID: 
+             Master_Info_File: /data/mysql3306/data/master.info
+                    SQL_Delay: 0
+          SQL_Remaining_Delay: NULL
+      Slave_SQL_Running_State: 
+           Master_Retry_Count: 86400
+                  Master_Bind: 
+      Last_IO_Error_Timestamp: 
+     Last_SQL_Error_Timestamp: 
+               Master_SSL_Crl: 
+           Master_SSL_Crlpath: 
+           Retrieved_Gtid_Set: 
+            Executed_Gtid_Set: a20982c6-f74a-11e7-9acb-fa163e6b5447:1-3
+                Auto_Position: 0
+         Replicate_Rewrite_DB: 
+                 Channel_Name: 
+           Master_TLS_Version: 

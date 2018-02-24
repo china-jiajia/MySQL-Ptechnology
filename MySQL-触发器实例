@@ -1,0 +1,102 @@
+
+1.创建学生表和学生统计表
+CREATE TABLE student_info (stu_no INT(11) NOT NULL AUTO_INCREMENT,stu_name VARCHAR(255) DEFAULT NULL,PRIMARY KEY (stu_no));
+
+CREATE TABLE student_count (student_count INT(11) DEFAULT 0);
+
+INSERT INTO student_count VALUES(0);
+
+
+2.创建简单触发器，在向学生表INSERT数据时，学生数增加，DELETE学生时，学生减少
+DELIMITER //
+CREATE TRIGGER trigger_student_count_insert
+AFTER INSERT ON  student_info FOR EACH ROW
+UPDATE student_count SET student_count=student_count+1;
+//
+DELIMITER ;
+
+DELIMITER //
+CREATE TIRGGER trigger_student_count_delete
+AFTER DELETE ON student_info FOR EACH ROW
+UPDATE sutdent_count SET student_count=student_count-1;
+//
+DELIMITER ;
+
+3.INSERT、DELETE数据，查看触发器是否正常工作
+INSERT INTO student_info VALUES(NULL,'张明'),(NULL,'李明'),(NULL,'王明');
+
+select * from student_info;
+select * from student_count;
+
+delete from student_info where stu_name in ('张明','李明');
+
+select * from student_info;
+select * from student_count;
+
+
+4.创建包含多条执行语句的触发器
+1).重新初始化表
+CREATE TABLE student_info (stu_no INT(11) NOT NULL AUTO_INCREMENT,stu_name VARCHAR(255) DEFAULT NULL,student_class int(10) DEFAULT 0,PRIMARY KEY (stu_no));
+
+CREATE TABLE student_count (student_count INT(11) DEFAULT 0,student_class int(10) DEFAULT 0);
+
+
+insert into student_count values(0,0),(1,0),(2,0);
+
+select * from student_count;
+
+
+2).创建触发器，在INSERT时首先增加学生总数，然后判断新增的学生是几年级的，在增加对应年纪的学生总数:
+DELIMITER //
+CREATE TRIGGER trigger_student_count_insert
+AFTER INSERT
+ON student_info FOR EACH ROW
+BEGIN
+UPDATE student_count SET student_count=student_count+1 WHERE student_class=0;
+UPDATE student_count SET student_count=student_count+1 WHERE student_class= NEW.student_class;
+END
+//
+DELIMITER ;
+
+3).创建触发器，在DELETE时首先减少学生总数，然后判断删除的学生是几年级的，再减少对应年纪的学生总数:
+DELIMITER //
+CREATE TRIGGER trigger_student_count_delete
+AFTER DELETE
+ON student_info FOR EACH ROW
+BEGIN
+UPDATE student_count SET student_count=student_count-1 WHERE student_class=0;
+UPDATE student_count SET student_count=student_count-1 WHERE student_class= OLD.student_class;
+END
+//
+DELIMITER ;
+
+4).向学生表中分别插入多条不同年级的学生信息，查看触发器是否起作用
+INSERT INTO student_info VALUES(NULL,'AAA',1),(NULL,'BBB',1),(NULL,'CCC',2),(NULL,'DDD',2),(NULL,'ABB',1),(NULL,'ACC',1);
+
+select * from student_info;
+select * from student_count;
+
+
+5).从学生表中分别删除多条不同年级的学生信息，查看触发器是否起作用
+DELETE FROM student_info WHERE stu_name LIKE 'A%';
+
+select * from student_info;
+select * from student_count;
+
+
+
+
+5.触发器的使用限制
+官网“触发器语法和示例” http://dev.mysql.com/doc/refman/5.6/en/trigger-syntax.html
+
+1).触发器只能创建在永久表上，不能对临时表创建触发器；
+2).触发器不能使用CALL语句调用具有返回值或使用了动态SQL的存储过程（存储过程可以使用OUT或INOUT参数返回给触发器返回值）。
+3).触发器中不能使用开启或结束事务的语句段，比如，开始事务（START TRANSACTION）、提交事务（COMMIT）或是回滚事务（ROLLBACK），但是回滚到一个保存点（SAVEPOINT是允许的，因为回滚到保存点不会结束事务）；
+4).外键不会激活触发器；
+5).当使用基于行的复制时，从表上的触发器不会因操作主表中的数据而激活。当使用基于语句的复制时，从表上的触发器会被激活。参考 Section 17.4.1.34,“Replication and Triggers”；(https://dev.mysql.com/doc/refman/5.6/en/replication-features-triggers.html)
+6).触发器中不允许返回值，因此触发器中不能有返回语句，如果要立即停止一个触发器，应该使用LEAVE语句；
+
+
+6.触发器中的异常机制
+MySQL的触发器是按照BEFORE触发器、行操作、AFTER触发器的顺序执行的，其中任何一步发生错误都不会继续执行剩下的操作。如果是对事务表进行的操作，那么会整个作为一个事务被回滚，但是如果是对非事务表进行的操作，那么已经更新的记录将无法回滚，这也是设计触发器的时候需要注意的问题。
+

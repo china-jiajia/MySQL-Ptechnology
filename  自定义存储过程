@@ -1,0 +1,245 @@
+
+MySQL创建存储过程和函数:CREATE PROCEDURE/CREATE FUNCTION;使用CALL语句来调用存储过程，存储过程可以调用其他存储过程;函数可以从语句外调用，能返回标量值
+
+
+一、创建存储过程
+	1.语法
+		.CRAETE PROCEDUER pr_name ([proc_parameter]) [characteristics...] routine_body
+
+		proc_parameter指定存储过程的参数列表，列表形式如下:
+			[IN|OUT|INOUT] param_name type
+
+			.in:表示输入参数
+			.out:表示输出参数
+			.inout:表示既可以输入也可以输出
+			.param_name:表示参数名称
+			.type:表示参数的类型，该类型可以是MySQL数据库中的任意类型
+				.type取值
+charachteristic:
+	LANGUAGE SQL | [NOT] DETERMINISTIC | {CONTAINS SQL| NO SQL | READS SQL DATA| MODIFIES SQL DATA}| SQL SECURITY {DEFINER|INVOKER} | COMMENT 'string'
+routine_body:
+	Vaild SQL procedure statement or statements
+
+					.LANGUAGE SQL: 说明routine_body部分是由SQL语句组成的，当前系统支持的语言为SQL,SQL是LANGUAGE特性的唯一值
+					.[NOT] DETERMINISTIC: 指明存储过程执行的结果是否正确。DETERMINISTIC表示结果是缺点的。每次执行存储过程时，相同的输入会得到相同的输出。
+						.[NOT]DETERMINISTIC表示结果是不确定的，相同的输入可能得到不通的输出。如果没有指定任意一个值，默认为[NOT] DETERMINISTIC
+					.CONTAINS SQL|NO SQL|READS SQL DATA|MODEFIES SQL DATA:指明子程序使用SQL语句的限制
+						.CONTAINS SQL:表明子程序包含SQL语句，但是不包含读写数据的语句
+						.NO SQL:表明子程序不包含SQL语句
+						.READS SQL DATA:说明子程序包含读数据的语句
+						.MODEFIES SQL DATA:表明子程序包含写数据的语句
+						#默认情况下，系统会指定为CONTAINS SQL
+					.SQL SECURITY {DEFINER|INVOKER}:指明谁有权限来执行.DEFINER表示只有定义者才能执行
+						.INVOKER:表示拥有权限的调用者可以执行。默认情况下，系统指定位DEFINER
+					.COMMENT 'string':注释信息，可以用来描述存储过程或函数
+					.routine_body:是SQL代码的内容，可以用BEGIN...END来表示SQL代码的开始和结束。
+
+
+	2.创建一个查询t1表全部数据的存储过程
+DROP PROCEDURE IF EXISTS Proc;
+
+DELIMITER //
+CREATE PROCEDURE Proc()
+BEGIN
+	SELECT * FROM t1;
+END //
+DELIMITER ;
+
+CALL Proc();
+
+DELIMITER //
+CREATE PROCEDURE CountProc(OUT param1 INT)
+BEGIN
+SELECT COUNT(*) INTO param1 FROM t3;
+END //
+DELIMITER;
+
+
+
+二、存储函数
+	1.创建存储函数使用CREATE FUNCITON;基本语法:
+		.CREATE FUNCTION func_name ([func_parameter]) RETURNS TYPE [characteristics...] routine_body
+
+			.CREATE FUNCTION为用来创建存储函数的关键字
+			.func_name:表示存储函数的名称
+			.func_parameter:为存储函数的列表，参数列表如下:
+				.[IN|OUT|INOUT] PARAM_NAMETYPE
+					.IN:表示输入参数
+					.OUT:表示输出参数
+					.INOUT:表示既可以输入也可以输出
+					.param_name:表示参数名称，type表示参数类型，该类型可以是MySQL数据库中的任意类型
+					.RETURNS TYPE:表示函数返回数据的类型
+					.characteristic:指定存储函数的特性，取值与创建存储过程时相同
+
+	2.创建存储函数,NameByT(返回select语句的查询结果,数值类型为字符串型)
+DELIMITER //
+CREATE FUNCTION NameByT()
+RETURNS CHAR(50)
+RETURN (SELECT NAME FROM t3 WHERE id=2);
+//
+DELIMITER ;
+
+		#调用函数
+			SELECT NameByT();
+
+		注释:
+			.如果在存储函数中的RETURN语句返回一个类型不同于函数的RETURNS子句中指定类型的值，返回值将被强制转换为恰当的类型。
+				.例如: 如果一个函数返回一个SET或ENUM值，但是RETUEN语句返回一个整数，对于SET成员集的相应ENUM成员，从函数返回的值是字符串
+			.指定参数为IN、OUT、INOUT只对PROCDURE是合法的；(FUNCTION中总是默认是IN参数)RETURNS子句对FUNCTION做指定，对函数而言这是强制的(他用来指定函数的返回类型，而且函数体必须包含一个RETURN value语句)
+
+
+三、变量的使用(变量可以在子程序中声明并使用,这些变量的作用范围是在BEGIN...END程序中)
+	1.自定义变量
+		.DECLARE var_name[,varname]...date_type[DEFAULT VALUE];
+
+		var_name:为局部变量的名称。DEFLAUT VALUE子句给变量提供一个默认值。值除了可以被声明为一个常数外，还可以被指定位一个表达式。
+
+		DECLARE MYPAPRM INT DEFAULT 100;	#如果没有DEFAULT子句，初始值为NULL
+
+
+	2.为变脸赋值
+		.SET var_name=expr[,var_name=expr]...		#定义变量之后，为变量赋值可以改变变量的默认值，MySQL中使用SET语句为变量赋值
+
+		在存储过程中的SET语句一般是SET语句的扩展版本。
+		被SET的变量可能是子程序的变量，或者是全局服务器变量，如果系统变量或者用户变量
+
+		.例如：声明3个变量，分别为var1，var2和var3
+			.DECLARE var1,var2,var3 INT;
+			.SET var1=10,var2=20;
+			.SET var3=var1+var2;
+
+
+			#MySQL中还可以通过SELECT...INTO为一个或多个变量赋值
+				.DECLARE NAME CHAR(50);
+				.DECLARE id DECIMAL(8,2);
+				.SELECT id,NAME INTO id,NAME FROM t3 WHERE id=2;
+
+
+四.定义条件和处理程序
+		1.特定条件需要特定处理。这些条件可以联系到错误，以及子程序中的一般流程控制。定义条件是事先定义程序执行过程中遇到的问题，处理程序定义了在遇到这些问题时候应采取处理方式，并且保障存储过程或函数在遇到警告或错误时能继续执行。这样可以增强存储过程处理问题的能力，避免程序异常停止运行。
+
+
+		2.定义条件
+DECLARE condition_name CONDITION FOR[condition_type]
+[condition_type]:
+SQLSTATE[VALUE] sqlstate_value |mysql_error_code
+
+			.condition_name:表示条件名称
+			.condition_type:表示条件的类型
+			.sqlstate_value和mysql_error_code都可以表示mysql错误
+			.sqlstate_value:为长度5的字符串错误代码
+			.mysql_error_code:为数值类型错误代码，例如:ERROR1142(42000)中，sqltate_value的值是42000
+			.mysql_error_code:的值是1142
+
+			这个语句指定需要特殊处理条件。它将一个名字和指定的错误条件关联起来
+			这个名字随后别用在定义处理程序的DECLARE HANDLER语句中
+
+			定义ERROR1148（42000)错误，名称为command_not_allowed.
+				.定义方式：
+					.方式一:使用 上去了state_value
+						.DECLARE command_not_allowed CONDINTION FOR SQLSTATE '42000'
+
+					.方式二:使用mysql_error_code
+						.DECLARE command_not_allowed CONDITION FOR SQLSTATE 1148
+
+
+		3.定义处理程序
+DECLARE handler_type HANDLER FOR condition_value[,...] sp_statement
+handler_type:
+CONTINUE|EXIT|UNDO
+condition_value:
+SQLSTATE [VLAUE] sqlstate_value|
+condition_name |SQLWARNING|NOT FUND SQLEXCEPTION | mysql_error_code
+
+			.handler_type:参数指明错误的处理方式，该参数有3个值。这3个取值分别是CONTINUE、EXIT和UNDO。
+				.CONTINUE:表示遇到错误不进行处理，继续向下执行
+				.EXIT:表示遇到错误后马上退出
+				.UNDO:表示遇到错误后，撤回之前的操作，MySQL中暂停还不支持这种处理方式
+
+				注释:通常情况下，执行过程中遇到错误应该立即停止执行西面的语句，并且撤回前面的操作；但是，MySQL中现在还不能支持UNDO操作。如果事先能够预测错误类型，并且进行相应的处理，那么可以执行CONTINUE操作。
+
+			.condition_value:参数指明错误类型，该参数有6个取值
+				.sqlstate_value和mysql_error_code与条件定义中的是同一个意思
+				.condition_name是DECLARE定义的条件名称
+				.SQLWARNING:表示所有以01开头的sqlstate_value值
+				.NOT FOUND:表示所有以02开头的sqlstate_value值
+				.SQLEXCEPTION:表示所有没有被SQLWARNING或NOT FOUND捕获的sqlstate_value值
+				.sp_statement:表示一些存储过程或函数的执行语句
+
+
+			.定义处理程序的几种方法:
+				方法一: 捕获sqlstate_value
+					.DECLARE CONTINUE HANDLER FOR SQLSTATE '42000'
+					.SET @info='CAN NOT FIND';
+				方法二:捕获mysql_error_code
+					.DECLARE CONTINUE HANDLER FOR 1148 SET @info='CAN NOT FIND';
+				方法三: 先定义条件，然后调用
+					.DECLARE can_not_find CONDITION FOR 1146;
+					.DECLARE CONTINUE HANDLER FOR can_not_find SET @infor='CAN NOT FIND';
+				方法四:使用SQLWARNING
+					.DECLARE EXIT HANDLER FOR SQLWARNING SET @info='ERROR';
+				方法五:使用NOT FOUND
+					.DECALRE EXIT HANDLER FOR SQLEXCEPTION SET @info='ERROR';
+
+				方法一：捕获sqlstate_value值，如果遇到sqlstate_value值为42000，执行CONTINUE操作，并输出"CAT NOT FIND"信息。
+				方法二:捕获mysql_error_code值,如果遇到mysql_error_code值为1148，执行CONTINUE操作，并且输出"CAN NOT FIND"信息。
+				方法三:先定义条件，然后再调用条件.先定义can_not_find条件，遇到1148错误就执行CONTINUE操作。
+				方法四:使用SQLWARNING.SQLWARNING捕获所有以01开头的sqlstate_value值，然后执行EXIT操作，并且输出"ERROR"信息。
+				方法五:使用NOT FOUND。NOT FOUND捕获所有以02开头的sqlstate_value值，然后执行EXIT操作，并且输出"CAN NOT FIND"信息。
+				方法六:使用SQLEXCEPION.SQLEXCEPTION捕获所有没有被SQLWARNING或NOT FOUND捕获的sqlstate_value值，然后执行EXIT操作，并且输出"ERROR"信息
+
+			.定义条件和处理程序
+CREATE TABLE t8(s1 INT,PRIMARY KEY(s1));
+
+DELIMITER //
+CREATE PROCEDURE handlerdemo()
+BEGIN
+DECLARE CONTINUE HANDLER FOR SQLSTATE '23000' SET @x2=1;
+SET @x=1;
+INSERT INTO t8 VALUES(1);
+SET @x=2;
+INSERT INTO t8 VALUES(1);
+SET @x=3;
+END //
+DELIMTER ;
+
+			.调用存储过程
+				.CALL handlerdemo()
+			.查看调用过程
+				.SELECT @x;
+
+
+五、光标
+	.查询语句可能查询出多条记录，在存储过程和函数中使用光标来逐条读取查询结果集中的记录。
+	.光标的使用包括声明光标、打开光标、使用光标和关闭光标。光标必须声明在处理程序之前，并且声明在变量和条件之后。
+
+	1.光标声明(MySQL中使用DECLARE关键字来声明光标。其语法的基本形式如下:)
+		.DECLARE cursor_name CURSOR FOR select_statement;
+
+			.corsor_name:表示光标的名称
+			.select_statement:表示SELECT语句的内容，返回一个用于创建光标的结果集
+
+			.DECLARE cur_employee CURSOR FOR SELECT name,age FROM employee;
+
+	2.打开光标
+		.MySQL中使用OPEN关键字来打开光标:
+			.OPEN cursor_name;
+
+			.OPEN cur_employee;
+
+	3.使用光标
+		.MySQL中使用FETCH关键字来使用光标:
+			.FETCH cur_employee INTO var_name[,var_name...];
+
+			.cursor_name:表示光标的名称
+			.var_name:表示将光标中的SELECT语句查询出来的信息存入该参数中
+
+			.FETCH cur_employee INTO emp_name,emp_age;
+
+	4.关闭光标
+		.MySQL中使用CLOSE关键字来关闭光标。语法如下:
+			.CLOSE cursor_name;
+
+			.CLOSE cur_employee;
+
+		注释:MySQL中，光标只能存在存储过程和函数中使用!!
