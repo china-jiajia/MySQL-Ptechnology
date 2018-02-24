@@ -1,0 +1,65 @@
+
+MySQL在对大表做DROP TABLE过程中，所有操作都会被HANG住；因为InnoDB会维护一个全局独占锁(在table cache上面),直到DROP TABLE完成才释放
+
+
+1.新建一张大表
+CREATE TABLE `salaries` (
+  `emp_no` int(11) NOT NULL,
+  `salary` int(11) NOT NULL,
+  `from_date` date NOT NULL,
+  `to_date` date NOT NULL,
+  PRIMARY KEY (`emp_no`,`from_date`),
+  KEY `emp_no` (`emp_no`),
+  CONSTRAINT `salaries_ibfk_1` FOREIGN KEY (`emp_no`) REFERENCES `employees` (`emp_no`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+
+2.插入数据让这个表存储大量数据和查看表数据大小
+[root@service04 employees]# du -sh  salaries.ibd 
+140M    salaries.ibd
+
+
+3.对salaries表的ibd文件做硬链接
+[root@service04 employees]# du -sh salaries.*
+12K     salaries.frm
+140M    salaries.hdlk
+[root@service04 employees]# ll -lh salaries.*
+-rw-r----- 1 mysql mysql 8.5K Jan  5 21:10 salaries.frm
+-rw-r----- 2 mysql mysql 140M Jan  5 21:10 salaries.hdlk
+-rw-r----- 2 mysql mysql 140M Jan  5 21:10 salaries.ibd
+
+
+4.在MySQL当中删除salaries表
+	drop table salaries;			#其实只是相当于删除了salaries.frm和salaries.ibd(这个时候salaries.ibd的原先数据都转存到了salaries.hdlk上)
+
+	[root@service04 employees]# ll salaries.*
+	-rw-r----- 1 mysql mysql 146800640 Jan  5 21:10 salaries.hdlk
+
+	#这个时候只有salaries.hdlk文件存在
+
+5.再到系统当中的文件目录删除salaries.hdlk硬链接文件即可
+[root@service04 employees]# rm salaries.hdlk  -rf
+
+[root@service04 employees]# ll
+total 94512
+-rw-r----- 1 mysql mysql       61 Jan  5 21:10 db.opt
+-rw-r----- 1 mysql mysql     8606 Jan  5 21:10 departments.frm
+-rw-r----- 1 mysql mysql   114688 Jan  5 21:10 departments.ibd
+-rw-r----- 1 mysql mysql     8676 Jan  5 21:10 dept_emp.frm
+-rw-r----- 1 mysql mysql 31457280 Jan  5 21:10 dept_emp.ibd
+-rw-r----- 1 mysql mysql     8676 Jan  5 21:10 dept_manager.frm
+-rw-r----- 1 mysql mysql   131072 Jan  5 21:10 dept_manager.ibd
+-rw-r----- 1 mysql mysql     8768 Jan  5 21:10 employees.frm
+-rw-r----- 1 mysql mysql 23068672 Jan  5 21:10 employees.ibd
+-rw-r----- 1 mysql mysql     8672 Jan  5 21:10 titles.frm
+-rw-r----- 1 mysql mysql 41943040 Jan  5 21:10 titles.ibd
+
+	#已经没有关于salaries表的任何文理数据文件
+
+
+
+总结:
+	.这样会大大减少DROP TABLE(较大的数据表);MySQL HANG住的时间。
+	.原理:利用OS HARD LINK的原理
+		.当多个文件名同时指向同一个INODE时，这个INODE的引用数N>1,删除其中一个文件名都会很快。
+		.因为其直接的物理文件块没有被删除，只是删除了一个指针而已;当INODE的引用数N>1时，删除文件需要去把这个文件相关的所有数据块清除，所以会比较耗时。

@@ -1,0 +1,30 @@
+
+一、mysql表数据大小
+	.MySQL存储数据文件一般使用表空间存储；当MySQL使用InnoDB存储引擎的时候，MySQL使用表存储数据为共享表空间和独享表空间两种方式
+		.共享表空间:InnoDB的所有数据保存在一个单独的表空间里面，二这个表空间可以由很多文件组成，一个表可以跨多个文件存在；所以其大小限制不再是文件大小的限制，而其自身的限制--->官方显示表空间的最大限制为64TB
+		.独享表空间:每个表的数据以一个单独的文件来存放，这个时候的单表限制，又变成文件系统的大小限制了；在默认情况下，MySQL创建的MyISAM表允许的最大尺寸为4GB
+
+
+二、show table status\G;(内容解释)
+	.Data_length: 150032 ---> 表中数据的大小
+	.Index_length: 183107584 --->表的索引大小
+	.Data_free: 25238175744 --->表空间的大小
+	.data_Free: 如果是共享表空间data_free是共享表空间的大小而非数据的大小；如果是独享表空间才是该表的剩余空间；如果表时分区存储的，data_free 就是一个近似值而非精确值所以此时需要查询：
+		.select sum(data_free) from information_schema.paritions where table_schema='db_name' and table_name='table_name';
+
+
+	1.查询所有数据库的大小(information_schema.tables)
+		.use information_schema;
+		.select concat(round(sum(data_length/1024/1024),2),'MB') as data from information_schema.tables;
+
+		.select concat(round(sum(data_length/1024/1024),2),'MB') as data from information_schema.tables where table_schema='database_name';
+
+	2.查询指定表的大小
+		.select concat(round(sum(data_length/1024/1024),2),'MB') as data from information_schema.tables where table_schema='database_name' and table_schema='table_name';
+
+
+三、判断MySQL I/O 性能的一种方式(网络搜集供参考)
+	.show global status like 'innodb_dblwr%'\G;
+		.如果innodb_dblwr_pages_writen/innodb_dblwr_writes远小于64:1,说明磁盘写入眼里不高
+	.show engine innodb status\G; 	#查看缓冲池
+		.select table_name,data_length+index+length.table_rows from information_schema.tables where table_schema='database_name' and table_name='table_name';
